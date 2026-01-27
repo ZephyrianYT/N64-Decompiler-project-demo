@@ -1,0 +1,155 @@
+{
+  "version": "1.0.0",
+  "description": "N64 ROM database for recompilation - Clean Architecture Edition",
+  "games": [
+    {
+      "name": "Banjo-Kazooie",
+      "region": "NTSC-U",
+      "version": "1.0",
+      "gameId": "NBKE",
+      "titleInternal": "Banjo-Kazooie",
+      "sha1": "d6133ace5afaa0882cf214cf88daba39e266c078",
+      "md5": "d15cb7cf8ec603e25eb61c1be8e0c28b",
+      "crc32": "CD7559AC",
+      
+      "rom": {
+        "format": "z64",
+        "size": 16777216,
+        "entryPoint": "0x80100400",
+        "baseAddress": "0x80000000",
+        "codeStart": "0x1000"
+      },
+      
+      "segments": [
+        {
+          "name": "boot",
+          "romStart": "0x40",
+          "romEnd": "0x1000",
+          "vramStart": "0x80000400",
+          "type": "code",
+          "description": "Boot sequence and IPL3"
+        },
+        {
+          "name": "main_code",
+          "romStart": "0x1000",
+          "romEnd": "0x8E4B50",
+          "vramStart": "0x80001000",
+          "type": "code",
+          "description": "Main game code"
+        },
+        {
+          "name": "engine",
+          "romStart": "0x1000",
+          "romEnd": "0x29F000",
+          "vramStart": "0x80001000",
+          "type": "code",
+          "description": "Game engine code"
+        }
+      ],
+      
+      "knownFunctions": [
+        {
+          "address": "0x80000400",
+          "name": "boot",
+          "description": "Boot sequence entry"
+        },
+        {
+          "address": "0x80100400",
+          "name": "entry",
+          "description": "Main game entry point"
+        }
+      ],
+      
+      "decomp": {
+        "project": "https://github.com/Mr-Wiseguy/banjo-kazooie",
+        "status": "in_progress",
+        "available": true,
+        "commit": "main"
+      },
+      
+      "recomp": {
+        "reference": "https://github.com/BanjoRecomp/BanjoRecomp",
+        "status": "complete",
+        "playable": true,
+        "notes": "Full working recompilation with N64Recomp"
+      },
+      
+      "requirements": {
+        "python": "3.8+",
+        "compiler": "gcc|clang|msvc",
+        "disk_space": "500MB",
+        "ram": "4GB"
+      },
+      
+      "metadata": {
+        "developer": "Rare",
+        "publisher": "Nintendo",
+        "release_date": "1998-06-29",
+        "genre": "Platformer",
+        "players": 1
+      }
+    },
+    
+    {
+      "name": "Banjo-Kazooie",
+      "region": "NTSC-U",
+      "version": "1.1",
+      "gameId": "NBKE",
+      "titleInternal": "Banjo-Kazooie",
+      "sha1": "1fe1632098865f639e1a25192838a4d5d7099028",
+      "note": "Alternative version - may work but not primary target",
+      
+      "rom": {
+        "format": "z64",
+        "size": 16777216,
+        "entryPoint": "0x80100400",
+        "baseAddress": "0x80000000",
+        "codeStart": "0x1000"
+      }
+    },
+    
+    {
+      "name": "Banjo-Kazooie",
+      "region": "PAL",
+      "version": "1.0",
+      "gameId": "NBKP",
+      "titleInternal": "Banjo-Kazooie",
+      "note": "European version - not primary target but structure is similar",
+      
+      "rom": {
+        "format": "z64",
+        "size": 16777216,
+        "entryPoint": "0x80100400",
+        "baseAddress": "0x80000000",
+        "codeStart": "0x1000"
+      }
+    }
+  ],
+  
+  "templates": {
+    "n64_standard": {
+      "description": "Standard N64 ROM structure",
+      "bootSegment": {
+        "romStart": "0x40",
+        "romEnd": "0x1000",
+        "vramStart": "0x80000400"
+      },
+      "codeStart": "0x1000",
+      "ramBase": "0x80000000",
+      "rdramSize": "0x800000"
+    }
+  },
+  
+  "notes": [
+    "This database can be extended to support other N64 games",
+    "Each game needs its specific ROM structure and entry points",
+    "SHA1 hashes are used for ROM verification",
+    "Segments may overlap - decomp projects provide accurate maps"
+  ],
+  
+  "resources": {
+    "n64recomp": "https://github.com/N64Recomp/N64Recomp",
+    "decomp_projects": "https://github.com/topics/n64-decompilation",
+    "n64brew": "https://n64brew.dev/"
+  }
+}
