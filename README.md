@@ -1,291 +1,243 @@
-(Concept Project for Engineers)
-# Banjo-Kazooie N64 Recompiler
-## Drag & Drop Edition for Windows 11
+Universal N64 Recompiler — Drag & Drop Edition (WIP Concept Release)
 
-A streamlined, user-friendly N64 recompiler specifically designed for Banjo-Kazooie. Simply drag your ROM onto the executable and get a recompiled version on your Desktop.
+A cross‑game, cross‑engine recompiler framework for Nintendo 64 titles.
+Designed for engineers, modders, and toolchain developers building modernized executables from classic N64 ROMs.
 
----
+This WIP release demonstrates the architecture, workflow, and runtime model used across all supported titles. It is not a full decompiler; it is a foundation for future expansion.
+Purpose of This WIP Release
 
-## 🎮 Quick Start
+This concept project shows how a universal N64 recompilation pipeline can be packaged into a simple drag‑and‑drop Windows executable while maintaining a modular backend capable of supporting multiple games, engines, and ROM formats.
 
-### Requirements
+The goal is to provide a clean, predictable, automated workflow that engineers can extend into full recompiler implementations.
+Quick Start
+Requirements
 
-1. **Windows 11** (or Windows 10)
-2. **Python 3.8+** - [Download here](https://www.python.org/downloads/)
-   - ⚠️ During installation, check "Add Python to PATH"
-3. **C Compiler** - One of:
-   - **GCC** (Recommended) - Install via [MinGW-w64](https://www.mingw-w64.org/) or [MSYS2](https://www.msys2.org/)
-   - **Visual Studio** - [Community Edition is free](https://visualstudio.microsoft.com/)
-   - **Clang/LLVM** - [Download here](https://releases.llvm.org/)
-4. **Banjo-Kazooie ROM** (US 1.0 version)
-   - Game ID: NBKE
-   - You must own the original game
+    Windows 10 or Windows 11
 
-### Setup (One-Time)
+    Python 3.8+
 
-1. **Extract this package** to a permanent location (e.g., `C:\BanjoRecomp\`)
+    A C/C++ compiler (GCC, MSVC, or Clang)
 
-2. **Build the executable:**
-   - Open a terminal in this folder
-   - Run: `compile.bat`
-   - This creates `BanjoRecomp.exe`
+    A legally‑owned N64 ROM (any supported title)
 
-3. **Install Python dependencies:**
-   ```bash
-   python -m pip install capstone
-   ```
+Setup
 
-### Usage
+    Extract the project to a permanent directory
 
-1. **Drag and drop** your Banjo-Kazooie ROM file (`.z64`) onto `BanjoRecomp.exe`
-2. **Wait** for the PowerShell window to complete the process
-3. **Find your output** on the Desktop in a timestamped folder
-4. **Run** `BanjoKazooie-Recompiled.exe` from the output folder
+    Run compile.bat to build the drag‑and‑drop executable
 
----
+    Install Python dependencies:
+    python -m pip install capstone
 
-## 📁 Project Structure
+Usage
 
-```
-BanjoRecomp/
-├── BanjoRecomp.exe         # Drag-and-drop wrapper (you create this)
-├── BanjoRecomp.cpp         # C++ source for wrapper
-├── BanjoRecomp.ps1         # Main recompilation script
-├── compile.bat             # Helper to build the .exe
-├── README.md               # This file
-└── [Output on Desktop]/    # Generated after first run
-    ├── BanjoKazooie-Recompiled.exe
-    └── work/               # Intermediate files
+    Drag any supported N64 ROM onto the executable
+
+    The tool validates, extracts, disassembles, and recompiles
+
+    Output appears on the Desktop in a timestamped folder
+
+    Run the generated executable from the output directory
+
+Project Structure
+Code
+
+N64Recompiler/
+├── Recompiler.exe          # Drag-and-drop wrapper
+├── Recompiler.cpp          # Wrapper source
+├── Recompiler.ps1          # Main pipeline script
+├── compile.bat             # Build helper
+└── [Desktop Output]/       # Generated per-run
+    ├── GameName-Recompiled.exe
+    └── work/
         ├── segments/       # Extracted ROM sections
-        ├── asm/            # Disassembled MIPS code
-        ├── generated/      # Generated C code
+        ├── asm/            # MIPS disassembly
+        ├── generated/      # Generated C code (WIP)
         └── runtime/        # N64 runtime implementation
-```
 
----
+How the Universal Pipeline Works
 
-## 🔧 How It Works
+The recompiler uses a consistent multi‑stage workflow that applies to any supported N64 title.
+1. ROM Validation
 
-This recompiler follows a clean, automated pipeline:
+    Identifies ROM format
 
-### Pipeline Stages
+    Reads header metadata
 
-1. **ROM Validation** - Verifies the ROM is Banjo-Kazooie (US 1.0)
-2. **Tool Initialization** - Checks Python, compilers, and installs dependencies
-3. **ROM Extraction** - Extracts code and data segments from the ROM
-4. **Disassembly** - Converts MIPS machine code to assembly using Capstone
-5. **Code Generation** - Translates MIPS assembly to C code (stubs in demo)
-6. **Runtime Creation** - Generates N64 emulation runtime (memory, CPU state)
-7. **Compilation** - Compiles everything into a Windows executable
+    Confirms game ID, entry point, and checksum
 
-### Technology Stack
+    Warns on mismatches but continues for research purposes
 
-- **PowerShell** - Orchestration and workflow management
-- **Python** - Disassembly and code generation
-- **Capstone** - MIPS disassembler engine
-- **C/C++** - Final executable compilation
-- **Windows APIs** - Drag-and-drop interface
+2. Tool Initialization
 
----
+    Verifies Python environment
 
-## ⚙️ Configuration
+    Verifies compiler availability
 
-### ROM Details (BanjoRecomp.ps1)
+    Loads disassembly and code‑generation modules
 
-```powershell
-ExpectedGameID = "NBKE"              # Must match
-ExpectedTitle = "Banjo-Kazooie"      # Expected title
-ExpectedSHA1 = "d6133ace..."         # US 1.0 hash (warning if mismatch)
-```
+3. ROM Extraction
 
-### Output Settings
+    Normalizes byte‑order
 
-```powershell
-DesktopOutput = [Environment]::GetFolderPath("Desktop")
-OutputName = "BanjoKazooie-Recompiled"
-CreateTimestamp = $true              # Adds timestamp to folder name
-```
+    Splits ROM into boot, code, data, and asset segments
 
----
+    Generates a reproducible segment map
 
-## 🛠️ For Developers
+4. MIPS Disassembly
 
-### Adapting for Other ROMs
+    Converts machine code to readable assembly
 
-This architecture is designed to be easily adaptable for other N64 games. To adapt:
+    Uses Capstone for instruction decoding
 
-1. **Update ROM configuration** in `BanjoRecomp.ps1`:
-   ```powershell
-   ExpectedGameID = "XXXX"          # New game ID
-   ExpectedTitle = "Game Name"      # New title
-   EntryPoint = 0xXXXXXXXX         # Entry point from ROM header
-   ```
+    Outputs structured .asm files
 
-2. **Update segment extraction** in `Invoke-ROMExtraction`:
-   ```powershell
-   $segments = @(
-       @{ Name = "boot"; Start = 0x40; End = 0x1000; ... },
-       @{ Name = "code"; Start = 0x1000; End = 0x...; ... }
-   )
-   ```
+5. Code Generation (WIP)
 
-3. **Rename the script and wrapper**:
-   - `BanjoRecomp.ps1` → `GameRecomp.ps1`
-   - Update `BanjoRecomp.cpp` script path reference
-   - Recompile wrapper
+    Produces C stubs for functions
 
-### Building from Source
+    Maps basic control flow
 
-```bash
-# Using Visual Studio C++ compiler
-cl BanjoRecomp.cpp /Fe:BanjoRecomp.exe /link /SUBSYSTEM:WINDOWS user32.lib shell32.lib
+    Prepares structures for future full translation
 
-# Using MinGW/GCC
-g++ BanjoRecomp.cpp -o BanjoRecomp.exe -mwindows -luser32 -lshell32 -static
+6. Runtime Creation
 
-# Using Clang
-clang++ BanjoRecomp.cpp -o BanjoRecomp.exe -mwindows -luser32 -lshell32
-```
+    Builds a minimal N64 runtime environment
 
-### PowerShell Script Testing
+    Memory model
 
-```powershell
-# Run directly without wrapper
-.\BanjoRecomp.ps1 "path\to\rom.z64"
+    CPU state
 
-# Enable verbose output
-$VerbosePreference = "Continue"
-.\BanjoRecomp.ps1 "path\to\rom.z64"
-```
+    Basic system calls
 
----
+    Placeholder RSP/RDP hooks
 
-## 📋 Features
+7. Compilation
 
-✅ **Simple UX** - Drag and drop, that's it
-✅ **Automatic** - No config files, no manual steps
-✅ **Redundant** - Multiple compiler support, error handling
-✅ **Accurate** - ROM validation, proper N64 memory model
-✅ **Portable** - Self-contained, no installation required
-✅ **Adaptable** - Easy to modify for other N64 games
-✅ **Clean Output** - Everything organized on Desktop
+    Compiles generated C code + runtime
 
----
+    Produces a standalone Windows executable
 
-## ⚠️ Important Notes
+    Places output on Desktop
 
-### This is a DEMONSTRATION
+Technology Stack
 
-This implementation is a **proof-of-concept** showing the clean architecture approach. It generates stub C code rather than full MIPS→C translation.
+    PowerShell — workflow orchestration
 
-**For a complete, playable Banjo-Kazooie recompilation**, see:
-- **BanjoRecomp**: https://github.com/BanjoRecomp/BanjoRecomp
+    Python — disassembly, parsing, code generation
 
-### What This Demo Does
+    Capstone — MIPS decoding
 
-✅ Validates ROM
-✅ Extracts segments
-✅ Disassembles MIPS code
-✅ Generates C function stubs
-✅ Compiles to Windows executable
-✅ Creates N64 runtime framework
+    C/C++ — final executable build
 
-### What's Needed for Full Recompilation
+    Windows APIs — drag‑and‑drop wrapper
 
-❌ Complete MIPS→C instruction translation
-❌ Function signature detection
-❌ Register allocation
-❌ Memory access patterns
-❌ Graphics/Audio/Controller emulation
-❌ Asset extraction and loading
+Configuration (Universal Model)
 
-### Path to Full Implementation
+Each game is defined by a simple configuration block inside the PowerShell script:
+Code
 
-To make this a complete recompiler:
+GameID = "XXXX"
+GameTitle = "Example Game"
+EntryPoint = 0xXXXXXXXX
+ExpectedSHA1 = "optional"
 
-1. **Reference BanjoRecomp's approach**:
-   - Study their TOML configuration structure
-   - Examine their N64Recomp tool usage
-   - Review their runtime implementation
+Segment extraction is defined per‑game:
+Code
 
-2. **Implement proper MIPS translation**:
-   - Use rabbitizer for instruction decoding
-   - Generate proper C translations per instruction
-   - Handle function calls and returns correctly
-   - Implement register preservation
+$segments = @(
+    @{ Name = "boot"; Start = 0x40; End = 0x1000 },
+    @{ Name = "code"; Start = 0x1000; End = 0x... },
+    @{ Name = "data"; Start = 0x...; End = 0x... }
+)
 
-3. **Add full runtime**:
-   - N64 memory management
-   - RSP (audio/graphics coprocessor)
-   - Controller input
-   - Save state support
+This structure allows engineers to add new games with minimal changes.
+Developer Notes
+Adapting for New Games
 
-4. **Integrate with N64Recomp**:
-   - Use official N64Recomp tool instead of custom Python
-   - Follow their established patterns
-   - Contribute improvements back
+To support another N64 title:
 
----
+    Update ROM metadata
 
-## 🔗 References
+    Define segment boundaries
 
-- **BanjoRecomp Project**: https://github.com/BanjoRecomp/BanjoRecomp
-- **N64Recomp Tool**: https://github.com/N64Recomp/N64Recomp
-- **Banjo-Kazooie Decomp**: https://github.com/Mr-Wiseguy/banjo-kazooie
-- **Capstone**: https://www.capstone-engine.org/
+    Adjust entry point
 
----
+    Add game‑specific extraction rules if needed
 
-## 📝 License
+    Recompile wrapper
 
-This is educational/demonstration software. Ensure you own the original Banjo-Kazooie game before using this tool.
+Building from Source
 
-The recompilation approach is based on the excellent work by:
-- N64Recomp authors
-- BanjoRecomp team
-- Banjo-Kazooie decompilation project
+Supports MSVC, GCC, and Clang.
+Testing
 
----
+Run the PowerShell script directly for verbose output.
+Current WIP Features
 
-## 🐛 Troubleshooting
+    Drag‑and‑drop UX
 
-### "Python not found"
-- Install Python from python.org
-- Make sure "Add to PATH" was checked during installation
-- Restart your terminal/computer
+    ROM validation
 
-### "Compiler not found"
-- Install MinGW-w64, Visual Studio, or LLVM
-- Make sure the compiler is in your PATH
-- Try running `gcc --version` or `cl` to verify
+    Segment extraction
 
-### "Capstone not installed"
-```bash
-python -m pip install capstone
-```
+    MIPS disassembly
 
-### "ROM validation failed"
-- Ensure you have the US 1.0 version (Game ID: NBKE)
-- Check the ROM file isn't corrupted
-- The tool will warn but proceed with other versions
+    C stub generation
 
-### PowerShell execution policy error
-The wrapper uses `-ExecutionPolicy Bypass` to avoid this, but if you run the script directly:
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
+    Minimal runtime
 
----
+    Windows executable output
 
-## 💡 Tips
+    Clean folder structure
 
-- **Keep your ROM in a simple path** (no spaces, special characters)
-- **Close other programs** during compilation to speed up the process
-- **Check the work folder** to examine intermediate files
-- **Read PowerShell output** for detailed progress information
-- **Check Desktop for output** - it creates a timestamped folder
+    Modular architecture for future expansion
 
----
+Not Included Yet
 
-Created with the Clean Architecture approach for N64 recompilation.
-Designed for simplicity, accuracy, and easy adaptation to other N64 titles.
+This WIP does not include:
+
+    Full MIPS→C translation
+
+    Function signature inference
+
+    Register allocation
+
+    RSP/RDP emulation
+
+    Graphics/audio pipelines
+
+    Asset extraction and loading
+
+    Game‑specific runtime behavior
+
+    Full rebuild capability
+
+These are future milestones.
+Path Toward Full Implementation
+
+To evolve this into a complete recompiler:
+
+    Integrate a full instruction translator (Rabbitizer recommended)
+
+    Implement register tracking and calling conventions
+
+    Build a complete N64 runtime (memory, RSP, RDP, input, audio)
+
+    Add asset extraction and loading
+
+    Implement game‑specific behavior modules
+
+    Follow patterns established by N64Recomp and BanjoRecomp
+
+    Expand segment mapping and symbol resolution
+
+References
+
+    N64Recomp
+
+    BanjoRecomp
+
+    Banjo‑Kazooie Decomp
+
+    Capstone Engine
