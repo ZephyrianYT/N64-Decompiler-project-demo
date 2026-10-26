@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>n64lab</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">n64lab <span class="muted">recompiler workbench</span></div>
+  <nav class="tabs" role="tablist">
+    <button data-tab="wizard" class="active">Wizard</button>
+    <button data-tab="explorer">Explorer</button>
+    <button data-tab="projects">Projects</button>
+    <button data-tab="howto">How-to</button>
+  </nav>
+  <div id="current-project" class="current muted">No ROM open</div>
+</header>
+
+<main>
+  <!-- ======================= WIZARD ======================= -->
+  <section id="tab-wizard" class="tab active">
+    <ol class="stepper" id="stepper">
+      <li data-step="1" class="active"><span>1</span>Choose a ROM</li>
+      <li data-step="2"><span>2</span>Inspect</li>
+      <li data-step="3"><span>3</span>Analyze</li>
+      <li data-step="4"><span>4</span>Recompile &amp; build</li>
+      <li data-step="5"><span>5</span>Run &amp; download</li>
+    </ol>
+
+    <div class="step active" id="step-1">
+      <h2>Choose a ROM</h2>
+      <p class="lead">Open a ROM you dumped yourself, or build one of the example programs. Either way it
+        becomes a project in the workspace, so you can come back to it later.</p>
+      <div class="grid2">
+        <div class="card">
+          <h3>Open a ROM file</h3>
+          <label class="drop" id="drop">
+            <input type="file" id="rom-file" accept=".z64,.n64,.v64,.rom,.bin">
+            <strong>Drop a .z64 / .n64 / .v64 here</strong>
+            <span class="muted">or click to choose. All three byte orders work.</span>
+          </label>
+          <details>
+            <summary>Have a symbol file? (optional)</summary>
+            <p class="muted small">A file of <code>name = 0x80001234;</code> lines, like decomp projects publish.
+              Function names then replace <code>func_80001234</code> everywhere.</p>
+            <input type="file" id="sym-file" accept=".sym,.txt,.ld">
+          </details>
+        </div>
+        <div class="card">
+          <h3>Build an example</h3>
+          <p class="muted small" id="examples-note">Small C programs compiled into N64 ROMs with clang. No
+            commercial ROM needed.</p>
+          <div id="examples" class="examples"></div>
+        </div>
+      </div>
+      <div class="card" id="recent-card" hidden>
+        <h3>Or continue a project</h3>
+        <div id="recent" class="recent"></div>
+      </div>
+    </div>
+
+    <div class="step" id="step-2">
+      <h2>Inspect the ROM</h2>
+      <p class="lead">Every N64 ROM starts with a 64-byte header, then the boot code (IPL3). Here's what
+        n64lab read from this one.</p>
+      <div class="card"><table class="kv" id="info-table"></table></div>
+      <div class="actions"><button class="secondary" data-goto="1">Back</button>
+        <button class="primary" data-goto="3">Analyze the code</button></div>
+    </div>
+
+    <div class="step" id="step-3">
+      <h2>Analyze: find the functions</h2>
+      <p class="lead">A ROM has no list of its functions, so n64lab works them out by following calls
+        from the entry point. Check the warnings, then optionally help the analyzer with a config.</p>
+      <div class="card">
+        <div class="summary" id="analysis-summary">Analyzing…</div>
+        <div id="analysis-warnings"></div>
+        <div class="actions left"><button class="secondary" id="open-explorer">Browse functions in the Explorer</button></div>
+      </div>
+      <details class="card" id="config-card">
+        <summary><strong>Config and symbols</strong> <span class="muted">(optional, for ROMs you didn't build)</span></summary>
+        <p class="muted small">JSON with any of: <code>functions</code> (extra start addresses),
+          <code>names</code>, <code>stubs</code> (skip functions, optionally with a return value),
+          <code>segments</code> (overlays). Functions can be addresses or names from the symbols.
+          See the How-to tab.</p>
+        <textarea id="config-text" rows="7" spellcheck="false">{}</textarea>
+        <p class="muted small">Symbols (<code>name = 0x80001234;</code> per line):</p>
+        <textarea id="symbols-text" rows="5" spellcheck="false"></textarea>
+        <div class="actions left"><button class="secondary" id="save-config">Save &amp; re-analyze</button>
+          <span id="config-status" class="muted small"></span></div>
+      </details>
+      <div class="actions"><button class="secondary" data-goto="2">Back</button>
+        <button class="primary" data-goto="4">Next: recompile</button></div>
+    </div>
+
+    <div class="step" id="step-4">
+      <h2>Recompile &amp; build</h2>
+      <p class="lead">Every function is translated into C, then compiled together with the runtime (memory map,
+        video, controller) into a program.</p>
+      <div class="card form">
+        <label>Build for
+          <select id="build-target">
+            <option value="native">This computer (can run it here)</option>
+            <option value="windows">Windows .exe (to download)</option>
+          </select></label>
+        <label>Optimization
+          <select id="build-opt">
+            <option value="0">O0: fastest to compile</option>
+            <option value="1" selected>O1: balanced</option>
+            <option value="2">O2: fastest program</option>
+          </select></label>
+        <label class="check"><input type="checkbox" id="build-debug">
+          Track calls (<code>--debug-calls</code>): if the program hangs, it reports which functions it was in</label>
+        <p class="muted small" id="compiler-note"></p>
+        <div class="actions left"><button class="primary" id="build-btn">Recompile &amp; build</button></div>
+      </div>
+      <pre class="log" id="build-log" hidden></pre>
+      <div class="actions"><button class="secondary" data-goto="3">Back</button>
+        <button class="primary" data-goto="5" id="to-run" disabled>Next: run it</button></div>
+    </div>
+
+    <div class="step" id="step-5">
+      <h2>Run &amp; download</h2>
+      <div class="grid2">
+        <div class="card">
+          <h3>Run here (headless)</h3>
+          <p class="muted small">Runs the program without a window for a few seconds, then shows what it
+            printed and its last frame. On Windows, the downloaded .exe opens a real window.</p>
+          <label>Seconds <input type="number" id="run-seconds" value="3" min="0.2" max="60" step="0.5"></label>
+          <div class="actions left"><button class="primary" id="run-btn">Run</button></div>
+          <p class="muted small" id="run-note"></p>
+        </div>
+        <div class="card">
+          <h3>Download</h3>
+          <p><a class="button secondary" id="dl-exe" href="#">Program</a>
+             <a class="button secondary" id="dl-project" href="#">C project (.zip)</a></p>
+          <p class="muted small">The zip holds the generated C, the runtime, the disassembly and
+            <code>build.bat</code> / <code>Makefile</code>. Run the .exe with the ROM:
+            drag the ROM onto it, or <code>game.exe rom.z64</code>. Keys: arrows = stick, X = A, C = B,
+            Enter = Start.</p>
+        </div>
+      </div>
+      <div id="run-result" hidden>
+        <div class="grid2">
+          <div class="card"><h3>Program output</h3><pre class="out" id="run-stdout"></pre></div>
+          <div class="card"><h3>Last frame</h3><div id="run-shot" class="shot muted">No framebuffer.</div></div>
+        </div>
+        <div class="card"><h3>Runtime log</h3><pre class="out small" id="run-log"></pre></div>
+      </div>
+      <div class="actions"><button class="secondary" data-goto="4">Back</button>
+        <button class="secondary" id="explore-btn">Explore the code</button></div>
+    </div>
+  </section>
+
+  <!-- ======================= EXPLORER ======================= -->
+  <section id="tab-explorer" class="tab">
+    <div class="empty" id="explorer-empty">Open a ROM in the Wizard first.</div>
+    <div class="explorer" id="explorer" hidden>
+      <aside class="funcs">
+        <input type="search" id="func-filter" placeholder="Filter functions…">
+        <div class="muted small" id="func-count"></div>
+        <ul id="func-list"></ul>
+      </aside>
+      <div class="viewer">
+        <div class="subtabs"><button data-view="code" class="active">Assembly ↔ C</button>
+          <button data-view="trace">Trace</button></div>
+        <div id="view-code">
+          <div class="func-head" id="func-head">Pick a function on the left.</div>
+          <div class="panes">
+            <div class="pane"><div class="pane-title">MIPS assembly</div><div class="code" id="asm"></div></div>
+            <div class="pane"><div class="pane-title">Generated C</div><div class="code" id="csrc"></div></div>
+          </div>
+          <p class="muted small">Hover a line to light up its partner on the other side. Click a function name
+            to jump to it. <span class="badge delay">delay slot</span> instructions run <em>before</em> the
+            branch above them takes effect.</p>
+        </div>
+        <div id="view-trace" hidden>
+          <p class="muted small">The interpreter runs the ROM one instruction at a time from the entry point and
+            shows each instruction with the registers and memory it changed.</p>
+          <label>Steps <input type="number" id="trace-steps" value="200" min="1" max="20000"></label>
+          <button class="primary" id="trace-btn">Run trace</button>
+          <pre class="out" id="trace-output"></pre>
+          <pre class="out trace" id="trace-text"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= PROJECTS ======================= -->
+  <section id="tab-projects" class="tab">
+    <h2>Projects</h2>
+    <p class="muted">Stored in the workspace folder on the machine running n64lab.</p>
+    <div id="project-list" class="recent"></div>
+  </section>
+
+  <!-- ======================= HOW-TO ======================= -->
+  <section id="tab-howto" class="tab prose">
+    <h2>How to use n64lab</h2>
+    <p>n64lab turns N64 machine code into C you can read, then compiles that C into a PC program. The
+      Wizard walks you through it. This page explains what each step is doing.</p>
+
+    <h3>The five steps</h3>
+    <ol>
+      <li><strong>Choose a ROM.</strong> Use a ROM you dumped from your own cartridge, or build an example.
+        The examples are tiny C programs compiled for the N64, so you can see the whole round trip without a
+        commercial ROM.</li>
+      <li><strong>Inspect.</strong> The header tells n64lab where the code starts (the <em>entry point</em>).
+        The <em>CIC</em> is the cartridge's lockout chip: two kinds load the game at a different address, so it
+        matters. The <em>checksum</em> is what the console verifies at boot.</li>
+      <li><strong>Analyze.</strong> Starting at the entry point, n64lab follows every call to find functions,
+        every branch to find labels, and every <code>switch</code> to find jump tables. Warnings mean it was
+        unsure, e.g. a jump through a register it couldn't resolve.</li>
+      <li><strong>Recompile &amp; build.</strong> Each MIPS instruction becomes one line of C. The C is
+        compiled with the runtime, which pretends to be the N64's hardware: memory, video output, the
+        controller.</li>
+      <li><strong>Run.</strong> On this computer it runs headless and shows the output and last frame. The
+        Windows .exe opens a window.</li>
+    </ol>
+
+    <h3>Reading the Explorer</h3>
+    <ul>
+      <li>Registers live in a struct: <code>cpu-&gt;a0</code>, <code>cpu-&gt;sp</code>, …
+        <code>S32(...)</code> means "keep 32 bits, sign-extended", like the real CPU.</li>
+      <li><code>LW(cpu-&gt;sp, 0x14)</code> loads a word from memory at <code>sp + 0x14</code>, through the
+        runtime, because the N64 is big-endian and some addresses are hardware.</li>
+      <li>Branches become <code>goto</code>; calls (<code>jal</code>) become C calls;
+        <code>jr $ra</code> becomes <code>return</code>.</li>
+      <li>A <span class="badge delay">delay slot</span> is the instruction after a branch. MIPS runs it
+        <em>before</em> jumping, so the C puts it first.</li>
+    </ul>
+
+    <h3>When a program hangs</h3>
+    <p>A hang usually means the program is waiting for hardware n64lab doesn't emulate (an interrupt, the
+      RSP, audio). To find where:</p>
+    <ol>
+      <li>Rebuild with <strong>Track calls</strong> ticked.</li>
+      <li>Run it. When the time is up, the runtime log shows the stack of functions it was in.</li>
+      <li>If it's stuck waiting on a function, <em>stub</em> it in the config with a return value that means
+        "ready": <code>{"stubs": {"device_ready": 1}}</code>.</li>
+    </ol>
+    <p>Careful: a stub only returns. It can't do the real function's work, so stubbing something the game
+      needs just moves the problem.</p>
+
+    <h3>Config reference</h3>
+    <table class="kv">
+      <tr><th>functions</th><td>Extra function starts the analyzer can't find, e.g. only reached through a pointer table.</td></tr>
+      <tr><th>names</th><td><code>{"0x80001000": "main_loop"}</code>: name functions you've identified.</td></tr>
+      <tr><th>stubs</th><td>A list of functions to skip, or a map giving each one's return value.</td></tr>
+      <tr><th>segments</th><td>More code to recompile besides the boot segment, e.g. overlays:
+        <code>{"rom": "0xA00000", "vram": "0x80400000", "size": "0x20000"}</code>.</td></tr>
+    </table>
+
+    <h3>What won't work (yet)</h3>
+    <p>Commercial games recompile, but won't play. They need the RSP/RDP graphics and audio processors and
+      libultra's threads and interrupts, which this runtime doesn't emulate. <code>docs/LEARNING.md</code> in
+      the repository explains each one. That's the best next read.</p>
+
+    <h3>Command line and Docker</h3>
+    <p>Everything here is also on the command line: <code>python -m n64lab --help</code>. To run this UI in
+      Docker: <code>docker run --rm -p 8064:8064 -v "$PWD:/work" n64lab ui --host 0.0.0.0</code>.</p>
+    <p class="muted">Only use ROMs you own. Generated code contains the game's code, so don't share it.</p>
+  </section>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

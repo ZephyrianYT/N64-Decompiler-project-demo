@@ -1,0 +1,8 @@
+.git
+legacy
+**/__pycache__
+**/*_recomp
+*.z64
+*.n64
+*.v64
+*.exe

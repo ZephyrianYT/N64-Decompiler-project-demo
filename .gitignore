@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+# ROMs and build output never belong in the repository
+*.z64
+*.n64
+*.v64
+*.sym
+*_recomp/
+build/
+*.exe
+*.o
+*.obj
+*.ppm
+n64lab_workspace/
