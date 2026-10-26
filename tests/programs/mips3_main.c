@@ -4,9 +4,9 @@
 void mips3_tests(unsigned int* out);
 
 int main(void) {
-    unsigned int out[32];
-    for (int i = 0; i < 32; i++) out[i] = 0xDEADBEEF;
+    unsigned int out[34];
+    for (int i = 0; i < 34; i++) out[i] = 0xDEADBEEF;
     mips3_tests(out);
-    for (int i = 0; i < 32; i++) lab_printf("%02d: %08x\n", i, out[i]);
+    for (int i = 0; i < 34; i++) lab_printf("%02d: %08x\n", i, out[i]);
     return 0;
 }

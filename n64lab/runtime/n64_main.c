@@ -21,10 +21,17 @@ void n64_log(const char* fmt, ...) {
     fflush(stderr);
 }
 
+void n64_final_screenshot(void) {
+    static volatile long taken;
+    if (n64_opts.screenshot_path && platform_claim_once(&taken)) {
+        n64_write_screenshot(n64_opts.screenshot_path);
+    }
+}
+
 uint64_t n64_time_ns(void) { return platform_time_ns() - start_ns; }
 
 void n64_halt(int exit_code, const char* reason) {
-    if (n64_opts.screenshot_path) n64_write_screenshot(n64_opts.screenshot_path);
+    n64_final_screenshot();
     n64_log("stopped (%s), exit code %d", reason, exit_code);
     fflush(stdout);
     platform_exit_game_thread(exit_code);

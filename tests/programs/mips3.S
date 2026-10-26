@@ -185,6 +185,14 @@ mips3_tests:
     mfc1    $t5, $f8
     sw      $t5, 124($t9)
 
+    # 11. a conditional branch straight into another function (a conditional tail call)
+    jal     cond_tail
+    addiu   $a0, $zero, 5          # taken: helper_double(5) = 10
+    sw      $v0, 128($t9)
+    jal     cond_tail
+    addiu   $a0, $zero, 0          # not taken: falls through and returns 99
+    sw      $v0, 132($t9)
+
     lw      $ra, 28($sp)
     jr      $ra
     addiu   $sp, $sp, 32
@@ -192,3 +200,10 @@ mips3_tests:
 helper_double:
     jr      $ra
     sll     $v0, $a0, 1
+
+# int cond_tail(int x) { return x ? helper_double(x) : 99; } with a branch, not a call
+cond_tail:
+    bnez    $a0, helper_double
+    nop
+    jr      $ra
+    addiu   $v0, $zero, 99

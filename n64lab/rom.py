@@ -68,6 +68,8 @@ def to_big_endian(data):
     fmt = detect_format(data)
     if fmt == "z64":
         return bytes(data)
+    if len(data) % 4:  # a trimmed dump: pad to whole words so the swaps line up
+        data = bytes(data) + bytes(4 - len(data) % 4)
     out = bytearray(data)
     if fmt == "v64":
         out[0::2], out[1::2] = data[1::2], data[0::2]

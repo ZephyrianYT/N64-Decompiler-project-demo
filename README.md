@@ -78,6 +78,39 @@ game.exe [rom.z64] [--headless] [--seconds N] [--screenshot F.ppm] [--trace-mmio
 `--trace-mmio` logs every video register write and cartridge DMA, so you can
 watch how a program talks to the hardware.
 
+## Docker
+
+The image contains the whole toolchain: Python, clang + lld for building
+homebrew ROMs, gcc, and MinGW for cross-compiling Windows `.exe` files. Mount
+your working folder at `/work`:
+
+```sh
+docker build -t n64lab .
+docker run --rm -v "$PWD:/work" -u "$(id -u):$(id -g)" n64lab info game.z64
+docker run --rm -v "$PWD:/work" -u "$(id -u):$(id -g)" n64lab recomp game.z64 --build --target windows
+docker run --rm -u "$(id -u):$(id -g)" --entrypoint python3 n64lab -m unittest discover -s /opt/n64lab/tests
+```
+
+`-u` makes the generated files belong to you rather than root. On Windows
+(PowerShell), use `-v "${PWD}:/work"` and leave out `-u`. Containers have no
+display, so the recompiled program runs headless there. Copy the `.exe` out
+and run it on Windows to see the window. Add `--build-arg WITH_WINE=1` to
+`docker build` to include Wine for the Windows end-to-end test.
+
+## Parallel work
+
+- **Recompiling** (`-j N`, default: all cores). The generated C is split into
+  files of about 6,000 instructions each, and the files are compiled in
+  parallel. On Linux, translating functions to C also runs in worker
+  processes for large ROMs. On Windows and macOS that step stays serial:
+  Python has to send each worker a copy of the analyzed program, and
+  measured, that cost more than it saved. Analysis is serial everywhere,
+  because each function discovered can change the boundaries of others.
+- **Running.** The recompiled program runs on its own thread, and the
+  window or headless monitor runs on another. See "Many things at once" in
+  [docs/LEARNING.md](docs/LEARNING.md) for how a real N64's parallel
+  hardware maps onto PC threads.
+
 ## How it works
 
 ```

@@ -112,8 +112,8 @@ class FunctionWriter:
             return "goto L_%08X;" % target
         name = self.call_name(target)
         if name:
-            return "%s(cpu); return;" % name
-        return "n64_jump(cpu, 0x%08X); return;" % target
+            return "{ %s(cpu); return; }" % name
+        return "{ n64_jump(cpu, 0x%08X); return; }" % target
 
     # -- whole function ------------------------------------------------------
 
@@ -320,6 +320,11 @@ class FunctionWriter:
             return ["n64_invalid_instruction(cpu, %s, 0x%08X);" % (here, insn.word)]
         if insn.has_delay_slot:
             return ["// WARNING: jump without a usable delay slot (in a delay slot, or at the end of the code) is not translated"]
+
+        # 64-bit shifts of $zero: avoid emitting `0 << 40`, which is undefined for an int.
+        if insn.rt == 0 and n in ("dsll", "dsrl", "dsra", "dsll32", "dsrl32", "dsra32",
+                                  "dsllv", "dsrlv", "dsrav"):
+            return [self.set_gpr(insn.rd, "0")]
 
         # Shifts.  32-bit results are always sign-extended into the 64-bit register.
         if n == "sll":

@@ -16,6 +16,8 @@ uint64_t platform_time_ns(void) {
     return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
 }
 
+int platform_claim_once(volatile long* flag) { return __sync_lock_test_and_set(flag, 1) == 0; }
+
 void platform_read_controller(uint8_t out[4]) { memset(out, 0, 4); }
 
 void platform_exit_game_thread(int code) {
@@ -44,7 +46,7 @@ int platform_run(void (*game_thread)(void)) {
         struct timespec nap = {0, 5000000};
         nanosleep(&nap, NULL);
         if (n64_opts.seconds > 0 && n64_time_ns() > (uint64_t)(n64_opts.seconds * 1e9)) {
-            if (n64_opts.screenshot_path) n64_write_screenshot(n64_opts.screenshot_path);
+            n64_final_screenshot();
             n64_log("time limit of %g s reached", n64_opts.seconds);
             fflush(stdout);
             exit(0);

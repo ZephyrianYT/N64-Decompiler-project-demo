@@ -22,12 +22,14 @@ tail call.
 
 import re
 import struct
+from collections import deque
 from dataclasses import dataclass, field
 
 from .mips import decode
 
 MAX_FUNCTION_INSNS = 0x10000
 MAX_JUMP_TABLE = 1024
+UNBOUNDED_TABLE_REACH = 0x2000
 
 
 @dataclass
@@ -81,6 +83,13 @@ class Program:
         self.notes = []
         self._decoded = {}
 
+    def __getstate__(self):
+        # The decode cache is large and cheap to rebuild; leave it out when
+        # the program is sent to code-generation worker processes.
+        state = dict(self.__dict__)
+        state["_decoded"] = {}
+        return state
+
     # -- memory -----------------------------------------------------------
 
     def segment_for(self, vram):
@@ -121,14 +130,14 @@ class Program:
             if self.is_code_address(addr):
                 seeds.setdefault(addr, "symbol file")
 
+        # Each pass rescans every function using everything learned so far.
+        # Stop once a pass finds no new function starts.
         known = dict(seeds)
         for _ in range(8):
+            before = set(known)
             functions = self._discover(known)
-            found = {start: f.reason for start, f in functions.items()}
-            if set(found) == set(known):
+            if set(known) == before:
                 break
-            for start, reason in found.items():
-                known.setdefault(start, reason)
         self.functions = functions
         for addr in self.stubs:
             if addr not in self.functions:
@@ -137,13 +146,14 @@ class Program:
 
     def _discover(self, known):
         functions = {}
-        queue = sorted(known.items())
+        queue = deque(sorted(known.items()))
         while queue:
-            start, reason = queue.pop(0)
-            if start in functions or not self.is_code_address(start):
+            start, reason = queue.popleft()
+            if start in functions:
                 continue
-            func = self._scan(start, reason, known)
+            func = self._scan(start, reason, known) if self.is_code_address(start) else None
             if func is None:
+                known.pop(start, None)  # not code after all
                 continue
             functions[start] = func
             new = [(t, "called by %s" % func.name) for t in sorted(func.calls)]
@@ -161,12 +171,16 @@ class Program:
         return functions
 
     def _scan(self, start, reason, known):
+        """Sweep one function.  Returns None if `start` does not decode as code."""
+        first = self.insn_at(start)
+        if first is None or not first.is_valid:
+            return None
         func = Function(start, start, self.name_of(start), reason)
         furthest = start   # furthest internal branch target seen so far
         addr = start
         pending_end = None  # set when the current insn ends the function after its delay slot
         while len(func.insns) < MAX_FUNCTION_INSNS:
-            if addr != start and addr in known and addr > furthest and pending_end is None:
+            if addr != start and addr in known and addr >= furthest and pending_end is None:
                 func.fallthrough = addr
                 break
             insn = self.insn_at(addr)
@@ -255,11 +269,14 @@ class Program:
         if base is None:
             return None
         table_addr = (base + lw.imm) & 0xFFFFFFFF
-        count = self._table_size(insns, add, insns[add]) or MAX_JUMP_TABLE
+        count = self._table_size(insns, add, insns[add])
+        # Without a bounds check the table's length is a guess: only accept
+        # targets close to the jump, so trailing data is not read as cases.
+        limit = 0xFFFFFFFF if count else jr.addr + UNBOUNDED_TABLE_REACH
         targets = []
-        for n in range(count):
+        for n in range(count or MAX_JUMP_TABLE):
             word = self.read_u32(table_addr + 4 * n)
-            if word is None or word % 4 or word < func.start or not self.is_code_address(word):
+            if word is None or word % 4 or word < func.start or word > limit or not self.is_code_address(word):
                 break
             if word != func.start and word in known:
                 break

@@ -24,9 +24,13 @@ static void isviewer_write(const char* s, int len) {
 }
 
 void lab_puts(const char* s) {
-    int len = 0;
-    while (s[len]) len++;
-    isviewer_write(s, len);
+    /* The IS-Viewer buffer holds just under 4 KiB, so send long strings in pieces. */
+    while (*s) {
+        int len = 0;
+        while (s[len] && len < 256) len++;
+        isviewer_write(s, len);
+        s += len;
+    }
 }
 
 typedef struct {

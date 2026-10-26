@@ -224,6 +224,36 @@ addresses with 3.
 thread redraws from RAM 60 times a second, just like the TV reading the
 framebuffer on a real console, independently of the CPU.
 
+### Many things at once
+
+An N64 is a multiprocessor machine. While the CPU runs game code:
+
+| Unit | Runs | In n64lab |
+|---|---|---|
+| CPU (VR4300) | game logic, libultra threads | the **game thread** (recompiled code) |
+| VI | scans the framebuffer out to the TV, 60 times a second | the **window/monitor thread** |
+| RSP | microcode: vertex transforms, audio mixing | not emulated |
+| RDP | rasterizes triangles into the framebuffer | not emulated |
+| AI, PI, SI | audio playback, cartridge and controller DMA | done instantly, on the game thread |
+
+The two threads n64lab uses share RDRAM without locks. That's deliberate,
+and faithful: the real VI also reads memory while the CPU writes it, which
+is why games double-buffer and swap `VI_ORIGIN` during vblank. You can see
+the tearing yourself by drawing in `bounce.c` without waiting for vblank.
+
+A full runtime has more concurrency to map:
+
+- **libultra threads.** Games create 4 to 10 threads (main, graphics, audio,
+  scheduler, idle) that the OS switches between on a single CPU. Instead of
+  emulating the switch, ultramodern runs each one as a real host thread,
+  with only one allowed to run at a time. That's needed because N64 code
+  assumes a single core: it uses priorities instead of locks. Running them
+  truly in parallel would break those assumptions.
+- **RSP/RDP.** These do run in parallel with the CPU on real hardware, so a
+  renderer can safely use its own thread (or the GPU). The game only waits
+  for "task done" interrupts.
+- **Audio.** Needs its own thread at a steady rate, or it crackles.
+
 ---
 
 ## 6. Why commercial games don't run (yet)

@@ -32,6 +32,8 @@ uint64_t platform_time_ns(void) {
            (uint64_t)(now.QuadPart % freq.QuadPart) * 1000000000ull / (uint64_t)freq.QuadPart;
 }
 
+int platform_claim_once(volatile long* flag) { return InterlockedExchange(flag, 1) == 0; }
+
 static int key(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
 
 void platform_read_controller(uint8_t out[4]) {
@@ -142,13 +144,13 @@ int platform_run(void (*game_thread)(void)) {
         return 1;
     }
     if (!n64_opts.headless && run_window()) {
-        if (n64_opts.screenshot_path) n64_write_screenshot(n64_opts.screenshot_path);
+        n64_final_screenshot();
         fflush(stdout);
         ExitProcess((UINT)exit_code);
     }
     DWORD wait = n64_opts.seconds > 0 ? (DWORD)(n64_opts.seconds * 1000) : INFINITE;
     if (WaitForSingleObject(thread, wait) == WAIT_TIMEOUT) {
-        if (n64_opts.screenshot_path) n64_write_screenshot(n64_opts.screenshot_path);
+        n64_final_screenshot();
         n64_log("time limit of %g s reached", n64_opts.seconds);
         fflush(stdout);
         ExitProcess(0);

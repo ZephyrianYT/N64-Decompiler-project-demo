@@ -339,15 +339,18 @@ int n64_framebuffer(uint32_t* out, int max_pixels, int* width, int* height) {
 }
 
 int n64_write_screenshot(const char* path) {
-    static uint32_t pixels[1024 * 576];
+    uint32_t* pixels = (uint32_t*)malloc(1024 * 576 * sizeof *pixels);
     int w, h;
+    if (!pixels) return 0;
     if (!n64_framebuffer(pixels, 1024 * 576, &w, &h)) {
         n64_log("no screenshot: the program never set up a framebuffer");
+        free(pixels);
         return 0;
     }
     FILE* f = fopen(path, "wb");
     if (!f) {
         n64_log("cannot write %s", path);
+        free(pixels);
         return 0;
     }
     fprintf(f, "P6\n%d %d\n255\n", w, h);
@@ -356,6 +359,7 @@ int n64_write_screenshot(const char* path) {
         fwrite(rgb, 1, 3, f);
     }
     fclose(f);
+    free(pixels);
     n64_log("wrote %dx%d screenshot to %s", w, h, path);
     return 1;
 }

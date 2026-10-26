@@ -1,0 +1,17 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the toolchain image (with Wine for the Windows test)
+        run: docker build --build-arg WITH_WINE=1 -t n64lab .
+      - name: Run all tests, including the Windows .exe under Wine
+        run: >
+          docker run --rm -e N64LAB_TEST_WINDOWS=1 --entrypoint python3 n64lab
+          -m unittest discover -s /opt/n64lab/tests -v

@@ -9,6 +9,11 @@ from . import build as builder
 from .rom import Rom, RomError
 
 
+def opt_flag(value):
+    """Accept O2, 2 or -O2 (argparse would read a bare -O2 as an option)."""
+    return "-O" + value.lstrip("-").lstrip("O")
+
+
 def load_config(args):
     config = builder.load_config(args.config)
     if getattr(args, "symbols", None):
@@ -58,11 +63,12 @@ def recompile(args):
     for note in program.notes:
         print("note: " + note)
     out = args.output or os.path.splitext(os.path.basename(args.rom))[0] + "_recomp"
-    name = builder.write_project(program, out, config.get("name"))
+    name = builder.write_project(program, out, config.get("name"), jobs=args.jobs)
     print("wrote C project to %s/" % out)
     exe = None
     if args.build or args.run:
-        exe = builder.compile_project(out, name, target=args.target, cc=args.cc, opt=args.opt)
+        exe = builder.compile_project(out, name, target=args.target, cc=args.cc, opt=args.opt,
+                                      jobs=args.jobs)
         print("built %s" % exe)
     return rom, exe
 
@@ -124,7 +130,10 @@ def main(argv=None):
     p.add_argument("--target", choices=["native", "windows"], default="native",
                    help="'windows' cross-compiles a .exe with MinGW when not on Windows")
     p.add_argument("--cc", help="C compiler to use")
-    p.add_argument("--opt", default="-O1", help="optimization flag (default -O1)")
+    p.add_argument("--opt", default="O1", type=opt_flag,
+                   help="optimization level: O0, O1 (default), O2, Os")
+    p.add_argument("-j", "--jobs", type=int,
+                   help="parallel workers for code generation and compiling (default: all CPU cores)")
     p.add_argument("run_args", nargs="*", help="extra arguments for the program after --")
     p.set_defaults(func=cmd_recomp)
 
@@ -132,7 +141,7 @@ def main(argv=None):
     p.add_argument("sources", nargs="+")
     p.add_argument("-o", "--output")
     p.add_argument("--title", default="N64LAB TEST")
-    p.add_argument("--opt", default="-O2")
+    p.add_argument("--opt", default="O2", type=opt_flag, help="optimization level (default O2)")
     p.add_argument("--symbols", help="where to write function names (default: <output>.sym)")
     p.set_defaults(func=cmd_homebrew)
 
