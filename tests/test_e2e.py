@@ -149,7 +149,11 @@ class EndToEnd(unittest.TestCase):
         rom_path, exe, _, _ = self.recompile("waits_debug", [source], debug_calls=True)
         report = self.run_until_timeout(exe, rom_path).stderr
         stack = [line.split()[-1] for line in report.splitlines() if "  0x8" in line]
-        self.assertEqual(stack[:3], ["device_ready", "wait_for_device", "main"], report)
+        # The stack is sampled at a random moment: the loop is either inside
+        # device_ready() or between two calls to it.
+        if stack and stack[0] == "device_ready":
+            stack = stack[1:]
+        self.assertEqual(stack[:3], ["wait_for_device", "main", "_start"], report)
 
     def test_without_debug_calls_a_hang_explains_how_to_find_it(self):
         source = os.path.join(PROGRAMS, "waits.c")

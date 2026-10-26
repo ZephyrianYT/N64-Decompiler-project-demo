@@ -29,6 +29,20 @@ about 1,200 lines. Every stage can be run and inspected on its own.
 > spend years on. [docs/LEARNING.md](docs/LEARNING.md) explains exactly what's
 > missing and why.
 
+## Quick start: the web UI
+
+The easiest way in is the web UI. Its wizard takes you from a ROM to a
+running program step by step, the Explorer shows each function's MIPS
+assembly next to the C it became, and a How-to page explains it all.
+
+- **Windows:** double-click **`n64lab-ui.bat`** (after steps 1 and 2 below).
+- **Anywhere:** `python -m n64lab ui --open`, then go to http://127.0.0.1:8064
+- **Docker:** `docker run --rm -p 8064:8064 -v "$PWD:/work" n64lab ui --host 0.0.0.0`
+
+Projects are saved in an `n64lab_workspace` folder. The UI has no login and
+builds and runs programs from the ROMs you give it. It only listens on your
+own machine unless you pass `--host`.
+
 ## Quick start (Windows)
 
 1. Install [Python 3.8+](https://www.python.org/downloads/) (tick "Add python.exe to PATH").
@@ -63,6 +77,7 @@ python -m n64lab disasm    game.z64 [--function 0x80000400]
 python -m n64lab trace     game.z64 --steps 50 # interpret, printing every instruction
 python -m n64lab recomp    game.z64 [-o out] [--build | --run] [--target windows]
 python -m n64lab homebrew  my.c -o my.z64      # build a test ROM from C (needs clang + lld)
+python -m n64lab ui        [--open] [--port 8064] [--host 127.0.0.1]   # the web UI
 ```
 
 `recomp --target windows` cross-compiles a `.exe` from Linux or macOS with MinGW.
@@ -140,6 +155,7 @@ and run it on Windows to see the window. Add `--build-arg WITH_WINE=1` to
 | `n64lab/build.py` | Writes the C project and compiles it |
 | `n64lab/interp.py` | A separate MIPS interpreter (`trace`), also used to cross-check the recompiler |
 | `n64lab/runtime/` | The C runtime: CPU helpers, the N64 memory map and hardware registers, Win32 window |
+| `n64lab/webui/` | The web UI: a standard-library HTTP server and one HTML/JS page |
 | `n64lab/homebrew/` | A tiny SDK and toolchain setup for writing your own test ROMs |
 
 The generated project in `<rom>_recomp/` is self-contained: it has its own

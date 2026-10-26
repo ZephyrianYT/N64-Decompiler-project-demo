@@ -11,3 +11,4 @@ build/
 *.o
 *.obj
 *.ppm
+n64lab_workspace/

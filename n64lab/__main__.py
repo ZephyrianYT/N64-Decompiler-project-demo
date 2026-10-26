@@ -99,6 +99,11 @@ def cmd_trace(args):
     interp.run(max_steps=args.steps, trace=not args.quiet, out=sys.stdout)
 
 
+def cmd_ui(args):
+    from .webui.server import serve
+    serve(host=args.host, port=args.port, workspace=args.workspace, open_browser=args.open)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="n64lab", description="Learn how N64 games work by recompiling them into C for Windows.")
@@ -154,6 +159,14 @@ def main(argv=None):
     p.add_argument("--quiet", action="store_true", help="only print the program's own output")
     p.add_argument("--symbols", help="symbol file, so calls show function names")
     p.set_defaults(func=cmd_trace)
+
+    p = sub.add_parser("ui", help="start the web UI (wizard, code explorer, how-to)")
+    p.add_argument("--host", default="127.0.0.1",
+                   help="address to listen on (use 0.0.0.0 inside Docker)")
+    p.add_argument("--port", type=int, default=8064)
+    p.add_argument("--workspace", default="n64lab_workspace", help="folder for projects")
+    p.add_argument("--open", action="store_true", help="open a browser")
+    p.set_defaults(func=cmd_ui)
 
     args = parser.parse_args(argv)
     try:

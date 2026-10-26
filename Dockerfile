@@ -3,6 +3,7 @@
 #
 #   docker build -t n64lab .
 #   docker run --rm -v "$PWD:/work" -u "$(id -u):$(id -g)" n64lab recomp game.z64 --build --target windows
+#   docker run --rm -p 8064:8064 -v "$PWD:/work" n64lab ui --host 0.0.0.0     # web UI
 #
 # Build with --build-arg WITH_WINE=1 to also run the Windows test under Wine.
 FROM ubuntu:24.04
@@ -28,5 +29,6 @@ ENV PYTHONPATH=/opt/n64lab \
     WINEDEBUG=-all
 
 WORKDIR /work
+EXPOSE 8064
 ENTRYPOINT ["python3", "-m", "n64lab"]
 CMD ["--help"]
