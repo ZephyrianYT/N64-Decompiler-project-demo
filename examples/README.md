@@ -47,10 +47,11 @@ For ROMs you didn't build yourself, a JSON config can help the analyzer. See
 | Field | Meaning |
 |---|---|
 | `name` | Name of the generated executable |
+| (all fields) | Wherever a field takes a function, you can give its address or its name from the symbols |
 | `functions` | Extra function start addresses the analyzer can't find (e.g. only reached through a pointer table) |
 | `names` | Address → name, for functions you've identified |
 | `symbols` | A symbol file (`name = 0x80001234;` per line, the format splat and decomp projects use) |
-| `stubs` | Functions to replace with an empty body (skip hardware-specific code) |
+| `stubs` | Functions to replace with an empty body. Use a map (`{"device_ready": 1}`) to also set the return value in `$v0`. See "Stubs and hangs" in `docs/LEARNING.md` |
 | `segments` | Extra code to recompile besides the 1 MiB boot segment, e.g. overlays loaded by DMA |
 
 ```sh

@@ -124,13 +124,21 @@ class FunctionWriter:
         self.lines.append("// found because: %s" % func.reason)
         for warning in func.warnings:
             self.lines.append("// WARNING: %s" % warning)
-        self.lines.append("void %s(CPUState* cpu) {" % self.name)
+        debug = self.program.debug_calls
+        if debug:
+            # The real body, wrapped below by a function that records the call.
+            self.lines.append("static void %s_body(CPUState* cpu) {" % self.name)
+        else:
+            self.lines.append("void %s(CPUState* cpu) {" % self.name)
 
         if func.start in self.program.stubs:
+            value = self.program.stubs[func.start]
             self.emit("// Stubbed out in the config: the original code is not run.")
+            if value is not None:
+                self.emit("cpu->v0 = S32(0x%X);  // return value from the config" % (value & 0xFFFFFFFF))
             self.emit("return;")
             self.lines.append("}")
-            return "\n".join(self.lines) + "\n"
+            return self._finish()
 
         insns = func.insns
         labels = set(func.labels)
@@ -172,7 +180,19 @@ class FunctionWriter:
         elif not ends_cleanly:
             self.emit("n64_fell_off_end(cpu, 0x%08X);" % func.end)
         self.lines.append("}")
-        return "\n".join(self._drop_unused_labels(self.lines)) + "\n"
+        self.lines = self._drop_unused_labels(self.lines)
+        return self._finish()
+
+    def _finish(self):
+        if self.program.debug_calls:
+            self.lines += [
+                "void %s(CPUState* cpu) {" % self.name,
+                "    n64_debug_enter(0x%08X);" % self.func.start,
+                "    %s_body(cpu);" % self.name,
+                "    n64_debug_leave();",
+                "}",
+            ]
+        return "\n".join(self.lines) + "\n"
 
     @staticmethod
     def _drop_unused_labels(lines):

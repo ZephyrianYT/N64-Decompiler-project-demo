@@ -5,12 +5,12 @@
 
   "names": {
     "0x80000400": "entrypoint",
-    "0x80001000": "main_loop"
+    "0x80001000": "wait_for_vblank"
   },
 
   "symbols": "mygame.sym",
 
-  "stubs": ["0x80005678"],
+  "stubs": {"0x80005678": null, "wait_for_vblank": 1},
 
   "segments": [
     {"name": "overlay_title", "rom": "0x00A00000", "vram": "0x80400000", "size": "0x20000"}

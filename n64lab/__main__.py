@@ -63,7 +63,8 @@ def recompile(args):
     for note in program.notes:
         print("note: " + note)
     out = args.output or os.path.splitext(os.path.basename(args.rom))[0] + "_recomp"
-    name = builder.write_project(program, out, config.get("name"), jobs=args.jobs)
+    name = builder.write_project(program, out, config.get("name"), jobs=args.jobs,
+                                 debug_calls=args.debug_calls)
     print("wrote C project to %s/" % out)
     exe = None
     if args.build or args.run:
@@ -132,6 +133,8 @@ def main(argv=None):
     p.add_argument("--cc", help="C compiler to use")
     p.add_argument("--opt", default="O1", type=opt_flag,
                    help="optimization level: O0, O1 (default), O2, Os")
+    p.add_argument("--debug-calls", action="store_true",
+                   help="track the call stack, so a hang or crash reports which functions it was in")
     p.add_argument("-j", "--jobs", type=int,
                    help="parallel workers for code generation and compiling (default: all CPU cores)")
     p.add_argument("run_args", nargs="*", help="extra arguments for the program after --")

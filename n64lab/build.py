@@ -32,6 +32,23 @@ def _int(value):
     return value if isinstance(value, int) else int(str(value), 0)
 
 
+def _address(value, by_name):
+    """An address like "0x80001234", or the name of a function from the symbols."""
+    if isinstance(value, str) and value in by_name:
+        return by_name[value]
+    try:
+        return _int(value)
+    except ValueError:
+        raise RuntimeError("config: '%s' is neither an address nor a known symbol name" % value)
+
+
+def _parse_stubs(stubs, by_name):
+    """`stubs` is a list of functions, or a map of function -> value returned in $v0."""
+    if isinstance(stubs, dict):
+        return {_address(a, by_name): (None if v is None else _int(v)) for a, v in stubs.items()}
+    return {_address(a, by_name): None for a in stubs}
+
+
 def load_config(path):
     if not path:
         return {}
@@ -56,10 +73,11 @@ def make_program(rom, config=None):
         symbols.update(load_symbols(config["_symbols_file"]))
     for addr, name in config.get("names", {}).items():
         symbols[_int(addr)] = name
+    by_name = {name: addr for addr, name in symbols.items()}
     program = Program(
         rom, segments, symbols,
-        extra_functions=[_int(a) for a in config.get("functions", [])],
-        stubs=[_int(a) for a in config.get("stubs", [])],
+        extra_functions=[_address(a, by_name) for a in config.get("functions", [])],
+        stubs=_parse_stubs(config.get("stubs", []), by_name),
     )
     return program.analyze()
 
@@ -87,7 +105,8 @@ def summary(program):
             % (len(funcs), insns, tables, warnings))
 
 
-def write_project(program, out_dir, project_name=None, jobs=None):
+def write_project(program, out_dir, project_name=None, jobs=None, debug_calls=False):
+    program.debug_calls = debug_calls
     rom = program.rom
     name = c_ident(project_name or rom.title or "game")
     src = os.path.join(out_dir, "src")

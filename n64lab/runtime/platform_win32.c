@@ -54,6 +54,16 @@ void platform_exit_game_thread(int code) {
     ExitThread((DWORD)code);
 }
 
+/* Ctrl+C in the console: report where the program was, then quit. */
+static BOOL WINAPI on_console_event(DWORD event) {
+    if (event != CTRL_C_EVENT && event != CTRL_BREAK_EVENT) return FALSE;
+    n64_log("interrupted");
+    n64_print_call_stack();
+    fflush(stdout);
+    ExitProcess(130);
+    return TRUE;
+}
+
 static DWORD WINAPI thread_main(LPVOID unused) {
     (void)unused;
     game_fn();
@@ -91,6 +101,7 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_TIMER:
         if (n64_opts.seconds > 0 && n64_time_ns() > (uint64_t)(n64_opts.seconds * 1e9)) {
             n64_log("time limit of %g s reached", n64_opts.seconds);
+            n64_print_call_stack();
             DestroyWindow(hwnd);
             return 0;
         }
@@ -137,6 +148,7 @@ static int run_window(void) {
 int platform_run(void (*game_thread)(void)) {
     HANDLE thread;
     game_fn = game_thread;
+    SetConsoleCtrlHandler(on_console_event, TRUE);
     /* Recompiled calls nest on the native stack, so give the thread plenty. */
     thread = CreateThread(NULL, 64u << 20, thread_main, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
     if (!thread) {
@@ -152,6 +164,7 @@ int platform_run(void (*game_thread)(void)) {
     if (WaitForSingleObject(thread, wait) == WAIT_TIMEOUT) {
         n64_final_screenshot();
         n64_log("time limit of %g s reached", n64_opts.seconds);
+        n64_print_call_stack();
         fflush(stdout);
         ExitProcess(0);
     }

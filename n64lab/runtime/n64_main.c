@@ -33,6 +33,7 @@ uint64_t n64_time_ns(void) { return platform_time_ns() - start_ns; }
 void n64_halt(int exit_code, const char* reason) {
     n64_final_screenshot();
     n64_log("stopped (%s), exit code %d", reason, exit_code);
+    if (exit_code != 0) n64_print_call_stack();
     fflush(stdout);
     platform_exit_game_thread(exit_code);
 }

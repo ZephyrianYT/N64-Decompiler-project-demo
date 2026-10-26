@@ -179,4 +179,9 @@ void n64_unsupported(CPUState* cpu, uint32_t pc, const char* what);
 void n64_invalid_instruction(CPUState* cpu, uint32_t pc, uint32_t word);
 void n64_fell_off_end(CPUState* cpu, uint32_t pc);
 
+/* Only called by code recompiled with --debug-calls: a record of which
+ * recompiled functions are running, printed when the program hangs or stops. */
+void n64_debug_enter(uint32_t func);
+void n64_debug_leave(void);
+
 #endif

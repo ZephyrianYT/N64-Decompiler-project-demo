@@ -53,7 +53,7 @@ class EndToEnd(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def recompile(self, name, sources, target="native", opt="-O2"):
+    def recompile(self, name, sources, target="native", opt="-O2", config=None, debug_calls=False):
         work = os.path.join(self.tmp, "%s_%s_%s" % (name, target, opt.strip("-")))
         os.makedirs(work, exist_ok=True)
         rom_path = os.path.join(work, name + ".z64")
@@ -68,10 +68,10 @@ class EndToEnd(unittest.TestCase):
             for warning in f.warnings:
                 self.fail("%s: %s: %s" % (name, f.name, warning))
         symbols = load_symbols(sym_path)
-        program = builder.make_program(rom, {"_symbols_file": sym_path})
+        program = builder.make_program(rom, dict(config or {}, _symbols_file=sym_path))
         self.assertIn(rom.entry, program.functions)
         out = os.path.join(work, "recomp")
-        exe_name = builder.write_project(program, out, name)
+        exe_name = builder.write_project(program, out, name, debug_calls=debug_calls)
         exe = builder.compile_project(out, exe_name, target=target, log=lambda *_: None)
         return rom_path, exe, symbols, reached
 
@@ -137,6 +137,29 @@ class EndToEnd(unittest.TestCase):
         by_name = {name: addr for addr, name in symbols.items()}
         for name in ("main", "lab_printf", "lab_puts", "put_number"):
             self.assertIn(by_name[name], reached, name)
+
+    def run_until_timeout(self, exe, rom_path):
+        result = subprocess.run([exe, rom_path, "--headless", "--seconds", "1"],
+                                capture_output=True, text=True, timeout=60)
+        self.assertIn("time limit", result.stderr)
+        return result
+
+    def test_debug_calls_shows_where_a_hang_is(self):
+        source = os.path.join(PROGRAMS, "waits.c")
+        rom_path, exe, _, _ = self.recompile("waits_debug", [source], debug_calls=True)
+        report = self.run_until_timeout(exe, rom_path).stderr
+        stack = [line.split()[-1] for line in report.splitlines() if "  0x8" in line]
+        self.assertEqual(stack[:3], ["device_ready", "wait_for_device", "main"], report)
+
+    def test_without_debug_calls_a_hang_explains_how_to_find_it(self):
+        source = os.path.join(PROGRAMS, "waits.c")
+        rom_path, exe, _, _ = self.recompile("waits_plain", [source])
+        self.assertIn("--debug-calls", self.run_until_timeout(exe, rom_path).stderr)
+
+    def test_stub_return_value_skips_a_wait(self):
+        source = os.path.join(PROGRAMS, "waits.c")
+        rom_path, exe, _, _ = self.recompile("waits_stub", [source], config={"stubs": {"device_ready": 1}})
+        self.assertEqual(self.run_exe(exe, rom_path), "waiting for the device\ndevice ready\n")
 
     @unittest.skipUnless(os.environ.get("N64LAB_TEST_WINDOWS") and wine() and
                          builder.find_compiler("windows"), "set N64LAB_TEST_WINDOWS=1 (needs MinGW + Wine)")

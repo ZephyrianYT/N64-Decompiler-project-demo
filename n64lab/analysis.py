@@ -78,7 +78,9 @@ class Program:
         self.segments = segments
         self.symbols = dict(symbols or {})
         self.extra_functions = list(extra_functions)
-        self.stubs = set(stubs)
+        # address -> value to return in $v0, or None to leave $v0 alone
+        self.stubs = dict(stubs) if isinstance(stubs, dict) else {addr: None for addr in stubs}
+        self.debug_calls = False  # set by write_project(); makes codegen track a call stack
         self.functions = {}
         self.notes = []
         self._decoded = {}

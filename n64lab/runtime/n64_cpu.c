@@ -239,6 +239,47 @@ static N64Func lookup_or_die(uint32_t target, const char* how) {
 void n64_call(CPUState* cpu, uint32_t target) { lookup_or_die(target, "Indirect call")(cpu); }
 void n64_jump(CPUState* cpu, uint32_t target) { lookup_or_die(target, "Indirect jump")(cpu); }
 
+/* ---- --debug-calls: which recompiled functions are running ------------------------------
+ * Written only by the game thread; read by whichever thread reports a hang.
+ * The read can race with a call or return, which is fine for a diagnostic. */
+
+#define CALL_STACK_MAX 1024
+#define DEEP_STACK_WARNING 100000
+
+static volatile uint32_t call_stack[CALL_STACK_MAX];
+static volatile uint32_t call_depth;
+static volatile int call_tracking;
+
+void n64_debug_enter(uint32_t func) {
+    uint32_t depth = call_depth;
+    if (depth < CALL_STACK_MAX) call_stack[depth] = func;
+    call_depth = depth + 1;
+    call_tracking = 1;
+    if (depth + 1 == DEEP_STACK_WARNING) {
+        n64_log("warning: %u nested calls. Functions that jump to each other in a loop "
+                "become C calls that never return, and this will eventually overflow the stack.",
+                DEEP_STACK_WARNING);
+    }
+}
+
+void n64_debug_leave(void) { call_depth--; }
+
+void n64_print_call_stack(void) {
+    if (!call_tracking) {
+        n64_log("(recompile with --debug-calls to see which function the program was in)");
+        return;
+    }
+    uint32_t depth = call_depth;
+    uint32_t shown = depth < CALL_STACK_MAX ? depth : CALL_STACK_MAX;
+    n64_log("call stack, innermost first (%u deep):", depth);
+    for (uint32_t i = 0; i < shown && i < 24; i++) {
+        uint32_t addr = call_stack[shown - 1 - i];
+        const N64FunctionEntry* entry = find_function(addr);
+        n64_log("  %2u  0x%08X  %s", i, addr, entry ? entry->name : "?");
+    }
+    if (shown > 24) n64_log("  ... %u more", depth - 24);
+}
+
 /* ---- exceptions and unsupported features --------------------------------------------- */
 
 void n64_syscall(CPUState* cpu, uint32_t pc) {

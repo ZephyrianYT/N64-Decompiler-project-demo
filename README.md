@@ -78,6 +78,17 @@ game.exe [rom.z64] [--headless] [--seconds N] [--screenshot F.ppm] [--trace-mmio
 `--trace-mmio` logs every video register write and cartridge DMA, so you can
 watch how a program talks to the hardware.
 
+**Finding hangs.** Recompile with `recomp --debug-calls`. Then, when the
+program hits `--seconds`, gets Ctrl+C, or stops with an error, it prints which
+recompiled functions it was in:
+
+```
+[n64] call stack, innermost first (4 deep):
+[n64]    0  0x80001CD0  device_ready
+[n64]    1  0x80001CEC  wait_for_device
+[n64]    2  0x80001D10  main
+```
+
 ## Docker
 
 The image contains the whole toolchain: Python, clang + lld for building

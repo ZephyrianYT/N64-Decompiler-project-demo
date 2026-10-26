@@ -268,7 +268,8 @@ Recompile a game you own, then look at how far it gets with
    expressible as a C call. N64Recomp's solution, *ultramodern*, replaces
    libultra's functions (`osCreateThread`, `osRecvMesg`, ...) with
    native implementations built on real OS threads. Use n64lab's `stubs`
-   config to see how far skipping functions gets you.
+   config to see how far skipping functions gets you, and read
+   "Stubs and hangs" below first.
 2. **Interrupts.** Games wait on VI (vblank) and SP/DP (task done) interrupts.
    n64lab never raises them, so `osRecvMesg` waits forever.
 3. **The RSP and RDP.** 3D graphics and audio aren't drawn by the CPU. The CPU
@@ -287,6 +288,57 @@ Recompile a game you own, then look at how far it gets with
 Each wall is a good project. The best next step is probably item 1 for a single
 thread: stub out `osCreateThread`/`osStartThread` and call the main thread's
 entry function directly.
+
+---
+
+### Stubs and hangs
+
+A stub replaces a function with an empty one. That's dangerous for any
+function a caller *waits on*:
+
+```c
+while (!device_ready()) {}          /* or: osRecvMesg(queue, &msg, OS_MESG_BLOCK) */
+```
+
+If `device_ready` is stubbed, it returns whatever `$v0` held, which is often
+0, and the loop spins forever. A spin looks just like a slow program. Two
+tools help:
+
+- **Find the hang:** recompile with `--debug-calls` and stop the program
+  (`--seconds 5` or Ctrl+C). It prints the stack of recompiled functions it
+  was in.
+- **Give stubs a return value**, so a waiting caller sees success. Config
+  entries can use function names from your symbol file:
+
+  ```json
+  { "stubs": { "device_ready": 1, "osRecvMesg": 0, "osSetIntMask": null } }
+  ```
+
+  `null` (or a plain list of stubs) leaves `$v0` untouched.
+  `tests/programs/waits.c` is a small program that hangs exactly like this.
+  Try both tools on it.
+
+A stub can only *return*. It can't do the function's side effects, such as
+filling in the message `osRecvMesg` was supposed to deliver. That's why real
+recompilations replace these functions with working native code instead.
+
+### Limits of one C function per MIPS function
+
+All recompiled functions share the single `CPUState`, so registers flow
+through calls and jumps exactly as on the console. Splitting the code into
+C functions only decides how *control* moves, and two patterns don't fit:
+
+- **Jumps to a computed address in the middle of a function**, e.g.
+  `longjmp`, or libultra resuming a thread at its saved PC via `eret`.
+  C can only enter a function at its start, so the runtime stops with
+  "no function was recompiled there".
+- **Functions that jump (`j`, not `jal`) to each other in a loop.** Each jump
+  becomes a C call that never returns, so the native stack grows until it
+  overflows. Compilers rarely produce this, but hand-written assembly can.
+  `--debug-calls` warns when calls nest 100,000 deep.
+
+Production recompilers handle the first by replacing those OS functions,
+and the second by merging such functions or using a dispatch loop.
 
 ---
 

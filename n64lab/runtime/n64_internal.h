@@ -34,6 +34,9 @@ int n64_write_screenshot(const char* path);
 /* Save --screenshot once at exit; safe to call from the game and main threads at the same time. */
 void n64_final_screenshot(void);
 
+/* Print the --debug-calls call stack (or a hint to enable it). */
+void n64_print_call_stack(void);
+
 /* Ends the program from inside recompiled code. */
 void n64_halt(int exit_code, const char* reason);
 
