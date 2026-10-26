@@ -1,0 +1,18 @@
+{
+  "name": "MyGame",
+
+  "functions": ["0x80012340"],
+
+  "names": {
+    "0x80000400": "entrypoint",
+    "0x80001000": "main_loop"
+  },
+
+  "symbols": "mygame.sym",
+
+  "stubs": ["0x80005678"],
+
+  "segments": [
+    {"name": "overlay_title", "rom": "0x00A00000", "vram": "0x80400000", "size": "0x20000"}
+  ]
+}

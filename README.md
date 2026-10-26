@@ -1,243 +1,127 @@
-Universal N64 Recompiler — Drag & Drop Edition (WIP Concept Release)
-
-A cross‑game, cross‑engine recompiler framework for Nintendo 64 titles.
-Designed for engineers, modders, and toolchain developers building modernized executables from classic N64 ROMs.
-
-This WIP release demonstrates the architecture, workflow, and runtime model used across all supported titles. It is not a full decompiler; it is a foundation for future expansion.
-Purpose of This WIP Release
-
-This concept project shows how a universal N64 recompilation pipeline can be packaged into a simple drag‑and‑drop Windows executable while maintaining a modular backend capable of supporting multiple games, engines, and ROM formats.
-
-The goal is to provide a clean, predictable, automated workflow that engineers can extend into full recompiler implementations.
-Quick Start
-Requirements
-
-    Windows 10 or Windows 11
-
-    Python 3.8+
-
-    A C/C++ compiler (GCC, MSVC, or Clang)
-
-    A legally‑owned N64 ROM (any supported title)
-
-Setup
-
-    Extract the project to a permanent directory
-
-    Run compile.bat to build the drag‑and‑drop executable
-
-    Install Python dependencies:
-    python -m pip install capstone
-
-Usage
-
-    Drag any supported N64 ROM onto the executable
-
-    The tool validates, extracts, disassembles, and recompiles
-
-    Output appears on the Desktop in a timestamped folder
-
-    Run the generated executable from the output directory
-
-Project Structure
-Code
-
-N64Recompiler/
-├── Recompiler.exe          # Drag-and-drop wrapper
-├── Recompiler.cpp          # Wrapper source
-├── Recompiler.ps1          # Main pipeline script
-├── compile.bat             # Build helper
-└── [Desktop Output]/       # Generated per-run
-    ├── GameName-Recompiled.exe
-    └── work/
-        ├── segments/       # Extracted ROM sections
-        ├── asm/            # MIPS disassembly
-        ├── generated/      # Generated C code (WIP)
-        └── runtime/        # N64 runtime implementation
-
-How the Universal Pipeline Works
-
-The recompiler uses a consistent multi‑stage workflow that applies to any supported N64 title.
-1. ROM Validation
-
-    Identifies ROM format
-
-    Reads header metadata
-
-    Confirms game ID, entry point, and checksum
-
-    Warns on mismatches but continues for research purposes
-
-2. Tool Initialization
-
-    Verifies Python environment
-
-    Verifies compiler availability
-
-    Loads disassembly and code‑generation modules
-
-3. ROM Extraction
-
-    Normalizes byte‑order
-
-    Splits ROM into boot, code, data, and asset segments
-
-    Generates a reproducible segment map
-
-4. MIPS Disassembly
-
-    Converts machine code to readable assembly
-
-    Uses Capstone for instruction decoding
-
-    Outputs structured .asm files
-
-5. Code Generation (WIP)
-
-    Produces C stubs for functions
-
-    Maps basic control flow
-
-    Prepares structures for future full translation
-
-6. Runtime Creation
-
-    Builds a minimal N64 runtime environment
-
-    Memory model
-
-    CPU state
-
-    Basic system calls
-
-    Placeholder RSP/RDP hooks
-
-7. Compilation
-
-    Compiles generated C code + runtime
-
-    Produces a standalone Windows executable
-
-    Places output on Desktop
-
-Technology Stack
-
-    PowerShell — workflow orchestration
-
-    Python — disassembly, parsing, code generation
-
-    Capstone — MIPS decoding
-
-    C/C++ — final executable build
-
-    Windows APIs — drag‑and‑drop wrapper
-
-Configuration (Universal Model)
-
-Each game is defined by a simple configuration block inside the PowerShell script:
-Code
-
-GameID = "XXXX"
-GameTitle = "Example Game"
-EntryPoint = 0xXXXXXXXX
-ExpectedSHA1 = "optional"
-
-Segment extraction is defined per‑game:
-Code
-
-$segments = @(
-    @{ Name = "boot"; Start = 0x40; End = 0x1000 },
-    @{ Name = "code"; Start = 0x1000; End = 0x... },
-    @{ Name = "data"; Start = 0x...; End = 0x... }
-)
-
-This structure allows engineers to add new games with minimal changes.
-Developer Notes
-Adapting for New Games
-
-To support another N64 title:
-
-    Update ROM metadata
-
-    Define segment boundaries
-
-    Adjust entry point
-
-    Add game‑specific extraction rules if needed
-
-    Recompile wrapper
-
-Building from Source
-
-Supports MSVC, GCC, and Clang.
-Testing
-
-Run the PowerShell script directly for verbose output.
-Current WIP Features
-
-    Drag‑and‑drop UX
-
-    ROM validation
-
-    Segment extraction
-
-    MIPS disassembly
-
-    C stub generation
-
-    Minimal runtime
-
-    Windows executable output
-
-    Clean folder structure
-
-    Modular architecture for future expansion
-
-Not Included Yet
-
-This WIP does not include:
-
-    Full MIPS→C translation
-
-    Function signature inference
-
-    Register allocation
-
-    RSP/RDP emulation
-
-    Graphics/audio pipelines
-
-    Asset extraction and loading
-
-    Game‑specific runtime behavior
-
-    Full rebuild capability
-
-These are future milestones.
-Path Toward Full Implementation
-
-To evolve this into a complete recompiler:
-
-    Integrate a full instruction translator (Rabbitizer recommended)
-
-    Implement register tracking and calling conventions
-
-    Build a complete N64 runtime (memory, RSP, RDP, input, audio)
-
-    Add asset extraction and loading
-
-    Implement game‑specific behavior modules
-
-    Follow patterns established by N64Recomp and BanjoRecomp
-
-    Expand segment mapping and symbol resolution
-
-References
-
-    N64Recomp
-
-    BanjoRecomp
-
-    Banjo‑Kazooie Decomp
-
-    Capstone Engine
+# n64lab: an N64 → Windows static recompiler for learning
+
+n64lab takes an N64 ROM, finds the machine code in it, translates every MIPS
+instruction into C, and compiles that C, together with a small runtime that
+stands in for the console's hardware, into a native Windows program.
+
+It's built to be read. The generated C has one statement per MIPS instruction,
+with the original instruction beside it:
+
+```c
+void fn_fibonacci(CPUState* cpu) {
+    cpu->sp = S32(cpu->sp - 0x10);              // 800016FC: addiu   $sp, $sp, -0x10
+    SW(cpu->sp, 0xC, cpu->ra);                  // 80001700: sw      $ra, 0xC($sp)
+    ...
+    cpu->ra = S32(0x80001730);                  // 80001728: jal     fibonacci  (call)
+    cpu->a0 = S32(cpu->s0 - 0x1);               // 8000172C: addiu   $a0, $s0, -0x1  (delay slot)
+    fn_fibonacci(cpu);
+```
+
+The Python side is about 2,500 lines with no dependencies, and the C runtime is
+about 1,200 lines. Every stage can be run and inspected on its own.
+
+> **What this is and isn't.** n64lab fully runs programs that drive the
+> hardware directly: text output, a framebuffer, the controller. Commercial
+> games recompile and compile, but they won't *play*. They depend on the
+> RSP/RDP graphics and audio processors and on libultra's threads and
+> interrupts, none of which this runtime emulates. Making a commercial game
+> playable is what projects like [N64Recomp](https://github.com/N64Recomp/N64Recomp)
+> spend years on. [docs/LEARNING.md](docs/LEARNING.md) explains exactly what's
+> missing and why.
+
+## Quick start (Windows)
+
+1. Install [Python 3.8+](https://www.python.org/downloads/) (tick "Add python.exe to PATH").
+2. Install a C compiler. The easiest is [winlibs MinGW-w64](https://winlibs.com):
+   take a release "with LLVM/Clang/LLD", unzip it, and add its `bin` folder
+   to PATH. That gives you gcc and clang for compiling the recompiled C, plus
+   the clang and lld needed to build the example ROMs. Visual Studio's `cl`
+   (run from a Developer Command Prompt) and MSYS2 work too.
+3. Drag a ROM onto **`n64lab.bat`**.
+
+The tool recompiles the ROM into `<rom name>_recomp\`, builds `<title>.exe`,
+and runs it. A window shows the framebuffer, and the console shows the log and
+anything the program prints.
+
+To try it without a commercial ROM, build one of the example programs:
+
+```bat
+python -m n64lab homebrew examples\bounce\bounce.c -o bounce.z64
+```
+
+Then drag `bounce.z64` onto `n64lab.bat`. Hold **X** (the A button) and use the
+arrow keys to steer the square.
+
+## Commands
+
+Everything is also available from the command line (Windows, Linux or macOS):
+
+```sh
+python -m n64lab info      game.z64            # header, boot chip (CIC), checksum
+python -m n64lab functions game.z64            # what the analyzer found and why
+python -m n64lab disasm    game.z64 [--function 0x80000400]
+python -m n64lab trace     game.z64 --steps 50 # interpret, printing every instruction
+python -m n64lab recomp    game.z64 [-o out] [--build | --run] [--target windows]
+python -m n64lab homebrew  my.c -o my.z64      # build a test ROM from C (needs clang + lld)
+```
+
+`recomp --target windows` cross-compiles a `.exe` from Linux or macOS with MinGW.
+On Linux and macOS the native build runs headless: it prints output and can
+save the framebuffer with `--screenshot frame.ppm`.
+
+Options for the generated program:
+
+```
+game.exe [rom.z64] [--headless] [--seconds N] [--screenshot F.ppm] [--trace-mmio] [--scale N]
+```
+
+`--trace-mmio` logs every video register write and cartridge DMA, so you can
+watch how a program talks to the hardware.
+
+## How it works
+
+```
+ ROM ──► rom.py ──► analysis.py ──► codegen.py ──► build.py ──► C compiler ──► .exe
+        header,     find functions,  one C line     write project,          + runtime/
+        byte order, labels, jump     per MIPS       compile in              (memory map,
+        boot code   tables           instruction    parallel                 video, input)
+```
+
+| File | Role |
+|---|---|
+| `n64lab/rom.py` | ROM byte orders (.z64/.v64/.n64), header, CIC detection, the boot checksum |
+| `n64lab/mips.py` | Table-driven decoder for the VR4300's MIPS III instruction set |
+| `n64lab/analysis.py` | Finds functions from the entry point, branch labels, switch jump tables, function pointers |
+| `n64lab/codegen.py` | Turns each function into C, handling delay slots, branch-likely and indirect jumps |
+| `n64lab/build.py` | Writes the C project and compiles it |
+| `n64lab/interp.py` | A separate MIPS interpreter (`trace`), also used to cross-check the recompiler |
+| `n64lab/runtime/` | The C runtime: CPU helpers, the N64 memory map and hardware registers, Win32 window |
+| `n64lab/homebrew/` | A tiny SDK and toolchain setup for writing your own test ROMs |
+
+The generated project in `<rom>_recomp/` is self-contained: it has its own
+`build.bat`, `Makefile` and `CMakeLists.txt`, and the disassembly it came from
+is in `asm/`.
+
+**[docs/LEARNING.md](docs/LEARNING.md)** walks through all of this step by
+step, with exercises.
+
+## Tests
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+The end-to-end tests compile each program in `tests/programs/` twice: natively
+for the PC, and for the N64. The N64 build is then both recompiled and
+interpreted, and all three must print exactly the same output. The programs
+cover integer and 64-bit math, switches, function pointers, structs and
+unaligned memory, floating point, plus hand-written MIPS III assembly for the
+corner cases compilers rarely emit. Another test checks the decoder against
+LLVM's disassembler. Set `N64LAB_TEST_WINDOWS=1` to also cross-build the
+Windows `.exe` and run it under Wine.
+
+## Legal
+
+Only use ROMs you dumped from cartridges you own. Recompiled output contains
+the game's code, so don't share it. `legacy/` holds this repository's earlier
+Banjo-Kazooie concept.
